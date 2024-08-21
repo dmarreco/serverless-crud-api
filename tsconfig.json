@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "lib": ["ES2022"],
+    "module": "ES2022",
+    "moduleResolution": "Bundler", // introduced in TypeScript 5.0
+    "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
+    "target": "ES2022",
+    "strict": true,
+    "strictPropertyInitialization": false
+  },
+  "include": ["src/**/*.ts"],
+  "compileOnSave": true,
+  "exclude": ["node_modules/**/*", ".serverless/**/*", ".husky/**/*", ".esbuild/**/*", ".dynamodb/**/*"]
+}

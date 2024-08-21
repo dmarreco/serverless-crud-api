@@ -1,0 +1,104 @@
+service: user-service
+
+plugins:
+  - serverless-esbuild # used for compiling/packaging the Typescript code
+  - serverless-offline # used for local execution
+  - serverless-dynamodb # used for local execution with dynamodb
+
+package:
+  patterns:
+    - 'src/**'
+    - '!test/**'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-west-2
+  stage: ${opt:stage, 'dev'}
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    LOG_LEVEL: 'DEBUG' #${ssm:${self:provider.stage}.LOG_LEVEL}
+    USER_TABLE: ${self:provider.stage}.user
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:PutItem
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:${self:custom.accountId}:table/${self:provider.environment.USER_TABLE}*
+
+custom:
+  accountId: 9999999 #FIXME got an error when trying to resolve ${aws:accountId} with serverless offline. this must be manually set (for now)
+  managedTablesDeletionPolicy: # This is useful to avoid data loss when deploying changes to table key schema to production
+    prod: Retain
+    default: Delete
+  serverless-dynamodb:
+    stages:
+      - local
+      - dev
+    start:
+      docker: false
+      migrate: true,
+      seed: true
+      port: 8000
+      inMemory: true
+    seed:
+      test:
+        sources:
+          - table: ${self:provider.environment.USER_TABLE}
+            sources: [./test/integration/seed-data/user.data.json]
+
+functions:
+  get-user:
+    handler: ./src/user-handler.get
+    events:
+      - httpApi: 'GET /user/{id}'
+  create-user:
+    handler: ./src/user-handler.create
+    events:
+      - httpApi: 'POST /user'
+  update-user:
+    handler: ./src/user-handler.update
+    events:
+      - httpApi: 'PUT /user/{id}'
+  query-user:
+    handler: ./src/user-handler.query
+    events:
+      - httpApi: 'GET /user'
+
+resources:
+  Resources:
+    userTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: ${self:custom.managedTablesDeletionPolicy.${self:provider.stage}, self:custom.managedTablesDeletionPolicy.default}
+      Properties:
+        TableName: ${self:provider.environment.USER_TABLE}
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        AttributeDefinitions:
+          - AttributeName: id # this attribute may look redundant with start_time but it is usefull for querying purposes (see date-index)
+            AttributeType: S
+          - AttributeName: startDate # this attribute may look redundant with startTime, but it contains only the day-of-year part of startTime and is usefull for querying purposes (see date-index)
+            AttributeType: S
+          - AttributeName: startTime
+            AttributeType: S
+        GlobalSecondaryIndexes:
+          - IndexName: date-index
+            KeySchema:
+              - AttributeName: startDate
+                KeyType: HASH
+              - AttributeName: startTime
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        Tags:
+          - Key: DDBTableGroupKey-${self:provider.stage}
+            Value: ${self:provider.stage}
+          - Key: OwnerService
+            Value: ${self:service}
