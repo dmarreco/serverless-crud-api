@@ -1,9 +1,12 @@
-export abstract class ApplicationException {
+export abstract class ApplicationException extends Error {
   public httpStatusCode?: number;
   public message: string;
 
   constructor(defaultMessage: string, customMessage?: string, httpStatusCode?: number) {
-    this.message = customMessage || defaultMessage;
+    const message = customMessage || defaultMessage;
+    
+    super(message)
+
     this.httpStatusCode = httpStatusCode;
   }
 }

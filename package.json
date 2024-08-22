@@ -1,7 +1,7 @@
 {
   "name": "@dmarreco/serverless-crud-api",
   "version": "1.0.0",
-  "description": "Simple C/R/U/D REST API using api using serverless and dynamodb, including local offline integration tests",
+  "description": "Simple C/R/U/D REST API using api using serverless and dynamodb, typescript 5, middlewares, offline dry-running and test automation and other best practices",
   "author": "Daniel Marreco",
   "scripts": {
     "dynamodb:install": "npx serverless dynamodb install",
@@ -14,6 +14,8 @@
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.635.0",
+    "@aws-sdk/lib-dynamodb": "^3.635.0",
     "@serverless/typescript": "^3.30.1",
     "@types/aws-lambda": "^8.10.119",
     "@types/jest": "^29.5.11",

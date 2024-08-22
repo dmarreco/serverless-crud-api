@@ -1,10 +1,8 @@
 import DomainEntity from './lib/domain-entity';
 
-export default class User implements DomainEntity {
-  public id?: string;
-  public version?: number;
-  public status: 'available' | 'not_available';
-  public startDate?: string;
-  public endTime: Date;
-  public startTime: Date;
+export class User implements DomainEntity {
+  readonly id?: string;
+  readonly version?: number;
+  readonly name: string;
+  readonly email: string;
 }

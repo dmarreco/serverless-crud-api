@@ -8,7 +8,12 @@
     "sourceMap": true,
     "target": "ES2022",
     "strict": true,
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": ["./src/*"],
+      "@lib/*": ["./src/lib/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "compileOnSave": true,

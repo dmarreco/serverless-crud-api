@@ -1,121 +1,128 @@
-import { DynamoDB } from 'aws-sdk';
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from 'uuid';
 
-import DomainEntity from './domain-entity';
 import log from './log';
-import { OptimisticLockException } from './business-exceptions';
 
-export default class DynamoRepository<T extends DomainEntity> {
-  private client: DynamoDB.DocumentClient;
-  private tableName: string;
+import DomainEntity from "./domain-entity";
 
-  constructor(tablePropertyName: string) {
-    const tableName = process.env[tablePropertyName];
 
-    if (tableName == null)
-      throw new Error(
-        `Expected environment variable is missing: ${tablePropertyName}; check service env configuration`
-      ); // This is an 'unhandled' exception and will result on a lambda error (and API response 5XX)
-
-    this.tableName = tableName;
-
-    log.info('ENV', process.env);
-
-    if (process.env.IS_OFFLINE === 'true') {
-      log.warn('Using Local/Offline DynamoDb Custom Endpoint');
-      this.client = new DynamoDB.DocumentClient({ endpoint: 'http://localhost:8000' });
-    } else {
-      log.debug('Using Cloud/AWS DynamoDb Default Endpoint');
-      this.client = new DynamoDB.DocumentClient();
+export class PersistenceException extends Error {
+    constructor(message: string) {
+        super(message);
     }
-  }
+}
 
-  /**
-   * Retrieve a record by its primary unique identifier (uuid)
-   *
-   * @param {*Entity's unique universal identifier} id Unique identifier (uuid) for the entity.
-   */
-  async get(id: string): Promise<T | undefined> {
-    const params: DynamoDB.DocumentClient.GetItemInput = {
-      TableName: this.tableName,
-      Key: { id }
-    };
 
-    log.debug('Dynamodb get request', params);
-    const response = await this.client.get(params).promise();
+export abstract class DynamoRepository<EntityType extends DomainEntity> {
 
-    log.debug('Dynamodb get result retrieved', response);
+    private _docClient: DynamoDBDocumentClient;
 
-    return response.Item as T;
-  }
+    protected constructor(private readonly getTableName: () => string) { }
 
-  async create(entity: T): Promise<T> {
-    entity.id = uuidv4();
-    entity.version = Date.now();
+    // TODO this client lazy getter / factory can be extracted to a specific module
+    private getDocClient():  DynamoDBDocumentClient {
+        if (this._docClient == null) {
+            let client: DynamoDBClient;
 
-    const params = {
-      TableName: this.tableName,
-      Item: entity,
-      ReturnValues: 'NONE'
-    };
+            if (process.env['IS_OFFLINE'] === 'true') {
+                log.warn('Using Local/Offline DynamoDb Custom Endpoint');
+                client = new DynamoDBClient({ endpoint: 'http://localhost:8000' });
+            } else {
+                log.debug('Using Cloud/AWS DynamoDb Default Endpoint');
+                client = new DynamoDBClient();
+            }
+    
+            this._docClient = DynamoDBDocumentClient.from(client);
+        }
 
-    log.debug('Database put request (create)', params);
-    const result = await this.client.put(params).promise();
-
-    log.debug('Database put response (create)', result);
-
-    return entity;
-  }
-
-  async query(key: string, fieldName: string, indexName?: string): Promise<T[]> {
-    const params = {
-      TableName: this.tableName,
-      IndexName: indexName,
-      KeyConditionExpression: '#field = :key',
-      ExpressionAttributeNames: { '#field': fieldName },
-      ExpressionAttributeValues: { ':key': key },
-      ScanIndexForward: false
-    };
-
-    if (!indexName) delete params.IndexName;
-
-    log.debug('Database query request', params);
-    const response = await this.client.query(params).promise();
-
-    log.debug('Database query response', response);
-
-    if (response.Items == null) return [];
-
-    return response.Items?.map((i) => i as T);
-  }
-
-  async update(entity: T): Promise<T> {
-    const currentVersion = Number(entity.version);
-    const newVersion = Date.now();
-
-    entity.version = newVersion;
-    const params = {
-      TableName: this.tableName,
-      IndexName: 'uuid-index',
-      Key: entity.id,
-      Item: entity,
-      // the parameters below garantee optimistic lock violations will throw "ConditionalCheckFailedException: The conditional request failed" error
-      ConditionExpression: '#version = :currentVersion',
-      ExpressionAttributeNames: { '#version': 'version' },
-      ExpressionAttributeValues: { ':currentVersion': currentVersion }
-    };
-
-    try {
-      log.debug('Database put request (update)', params);
-      const result = await this.client.put(params).promise();
-
-      log.debug('Database put response (update)', result);
-    } catch (error) {
-      if ('' + error === 'ConditionalCheckFailedException: The conditional request failed')
-        throw new OptimisticLockException();
-      else throw error;
+        return this._docClient;
     }
 
-    return entity;
-  }
+    async get(id: string): Promise<EntityType | null> {
+        const command = new GetCommand({
+            TableName: this.getTableName(),
+            Key: { id }
+        });
+
+        const commandResult = await this.getDocClient().send(command);
+
+        if (!commandResult.Item) return null;
+
+        return commandResult.Item as EntityType;
+    }
+
+    async list(page: number, pageSize: number): Promise<EntityType[]> {
+        const commonCmdParams = {
+            TableName: this.getTableName(),
+            Limit: pageSize,
+        };
+
+        let commandResult;
+        let lastEvaluatedKey;
+
+        for (let i = 0; i < page; i++) {
+            const isLastPage = i === page - 1;
+
+            commandResult = await this.getDocClient().send(new ScanCommand({
+                ...commonCmdParams,
+                ExclusiveStartKey: lastEvaluatedKey,
+                ProjectionExpression: isLastPage ? undefined : 'id', // Fetch full attributes only for the last page
+            }));
+
+            lastEvaluatedKey = commandResult?.LastEvaluatedKey;
+
+            if (!lastEvaluatedKey)  break; // End of dataset reached before target page
+        }
+
+        if (commandResult?.Items == null) return []; // TODO should throw?
+
+        return commandResult.Items as EntityType[]
+    }
+
+    async update(entity: EntityType): Promise<EntityType> {
+        if (entity.id == null || entity.version == null) {
+            throw new PersistenceException('Can not update an entity object with missing id or version attributes');
+        }
+
+        const currentVersion = Number(entity.version);
+        const newVersion = Date.now();
+        
+        const command = new PutCommand({
+            TableName: this.getTableName(),
+            Item: {
+                ... entity,
+                version: newVersion
+            },
+            // the parameters below garantee optimistic lock violations will throw "ConditionalCheckFailedException: The conditional request failed" error
+            ConditionExpression: '#version = :currentVersion',
+            ExpressionAttributeNames: { '#version': 'version' },
+            ExpressionAttributeValues: { ':currentVersion': currentVersion }
+          });
+
+          const commandResult = await this.getDocClient().send(command);
+
+          return commandResult.Attributes as EntityType;
+    }
+
+    async create(entity: EntityType): Promise<EntityType> {
+        
+        if (entity.id) {
+            throw new PersistenceException('Can not create a non-volatile entity object; The entity already has an id attribute - update instead');
+        }
+
+        const command = new PutCommand({
+            TableName: this.getTableName(),
+            Item: {
+                ... entity,
+                id: uuidv4(),
+                version: Date.now()
+            }
+          });
+
+          const commandResult = await this.getDocClient().send(command);
+
+          return commandResult.Attributes as EntityType;
+    }
+
 }

@@ -1,145 +1,145 @@
-import type { Context, APIGatewayProxyStructuredResultV2, APIGatewayProxyEventV2, Handler } from 'aws-lambda';
+// import type { Context, APIGatewayProxyStructuredResultV2, APIGatewayProxyEventV2, Handler } from 'aws-lambda';
 
-import log from './lib/log';
-import { ApplicationException, BadRequest, MissingParameterException } from './lib/business-exceptions';
+// import log from './lib/log';
+// import { ApplicationException, BadRequest, MissingParameterException } from './lib/business-exceptions';
 
-import UserService from './user-service';
 
-export const get: Handler = async (
-  event: APIGatewayProxyEventV2,
-  _context: Context
-): Promise<APIGatewayProxyStructuredResultV2> => {
-  const userService = new UserService();
 
-  log.debug('User Handler Event Received!', event);
+// export const get: Handler = async (
+//   event: APIGatewayProxyEventV2,
+//   _context: Context
+// ): Promise<APIGatewayProxyStructuredResultV2> => {
+//   const userService = new UserService();
 
-  const userId = event.pathParameters?.id;
+//   log.debug('User Handler Event Received!', event);
 
-  try {
-    const user = await userService.get(userId);
+//   const userId = event.pathParameters?.id;
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(user)
-    };
-  } catch (error) {
-    if (error instanceof ApplicationException) {
-      return {
-        statusCode: error.httpStatusCode,
-        body: error.message
-      };
-    } else {
-      log.error('Unhandled backed error', {}, error as Error);
-      throw error;
-    }
-  }
-};
+//   try {
+//     const user = await userService.get(userId);
 
-export const create: Handler = async (
-  event: APIGatewayProxyEventV2,
-  _context: Context
-): Promise<APIGatewayProxyStructuredResultV2> => {
-  const userService = new UserService();
+//     return {
+//       statusCode: 200,
+//       body: JSON.stringify(user)
+//     };
+//   } catch (error) {
+//     if (error instanceof ApplicationException) {
+//       return {
+//         statusCode: error.httpStatusCode,
+//         body: error.message
+//       };
+//     } else {
+//       log.error('Unhandled backed error', {}, error as Error);
+//       throw error;
+//     }
+//   }
+// };
 
-  log.debug('User Handler Event Received!', event);
+// export const create: Handler = async (
+//   event: APIGatewayProxyEventV2,
+//   _context: Context
+// ): Promise<APIGatewayProxyStructuredResultV2> => {
+//   const userService = new UserService();
 
-  if (event.body == null) throw new MissingParameterException('User expected in request body');
+//   log.debug('User Handler Event Received!', event);
 
-  const user = JSON.parse(event.body);
+//   if (event.body == null) throw new MissingParameterException('User expected in request body');
 
-  try {
-    const created = await userService.create(user);
+//   const user = JSON.parse(event.body);
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(created)
-    };
-  } catch (error) {
-    if (error instanceof ApplicationException) {
-      return {
-        statusCode: error.httpStatusCode,
-        body: error.message
-      };
-    } else {
-      log.error('Unhandled backed error', {}, error as Error);
-      throw error;
-    }
-  }
-};
+//   try {
+//     const created = await userService.create(user);
 
-export const update: Handler = async (
-  event: APIGatewayProxyEventV2,
-  _context: Context
-): Promise<APIGatewayProxyStructuredResultV2> => {
-  const userService = new UserService();
+//     return {
+//       statusCode: 200,
+//       body: JSON.stringify(created)
+//     };
+//   } catch (error) {
+//     if (error instanceof ApplicationException) {
+//       return {
+//         statusCode: error.httpStatusCode,
+//         body: error.message
+//       };
+//     } else {
+//       log.error('Unhandled backed error', {}, error as Error);
+//       throw error;
+//     }
+//   }
+// };
 
-  log.debug('User Handler Event Received!', event);
+// export const update: Handler = async (
+//   event: APIGatewayProxyEventV2,
+//   _context: Context
+// ): Promise<APIGatewayProxyStructuredResultV2> => {
+//   const userService = new UserService();
 
-  if (event.body == null) throw new MissingParameterException('User expected in request body');
+//   log.debug('User Handler Event Received!', event);
 
-  const user = JSON.parse(event.body);
+//   if (event.body == null) throw new MissingParameterException('User expected in request body');
 
-  const userId = event.pathParameters?.id;
+//   const user = JSON.parse(event.body);
 
-  if (userId == null) throw new MissingParameterException('entity id must be informed in API path');
+//   const userId = event.pathParameters?.id;
 
-  // this is not a business rule validation really, but rather a API contract rule, so it is implemented in the handler.
-  if (user.id != null && user.id !== userId)
-    throw new BadRequest('there is an Id in body that is different from the entity being updated');
+//   if (userId == null) throw new MissingParameterException('entity id must be informed in API path');
 
-  user.id = userId;
+//   // this is not a business rule validation really, but rather a API contract rule, so it is implemented in the handler.
+//   if (user.id != null && user.id !== userId)
+//     throw new BadRequest('there is an Id in body that is different from the entity being updated');
 
-  try {
-    const updated = await userService.update(user);
+//   user.id = userId;
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(updated)
-    };
-  } catch (error) {
-    if (error instanceof ApplicationException) {
-      return {
-        statusCode: error.httpStatusCode,
-        body: error.message
-      };
-    } else {
-      log.error('Unhandled backed error', {}, error as Error);
-      throw error;
-    }
-  }
-};
+//   try {
+//     const updated = await userService.update(user);
 
-export const query: Handler = async (
-  event: APIGatewayProxyEventV2,
-  _context: Context
-): Promise<APIGatewayProxyStructuredResultV2> => {
-  const userService = new UserService();
+//     return {
+//       statusCode: 200,
+//       body: JSON.stringify(updated)
+//     };
+//   } catch (error) {
+//     if (error instanceof ApplicationException) {
+//       return {
+//         statusCode: error.httpStatusCode,
+//         body: error.message
+//       };
+//     } else {
+//       log.error('Unhandled backed error', {}, error as Error);
+//       throw error;
+//     }
+//   }
+// };
 
-  log.debug('User Handler Event Received!', event);
+// export const query: Handler = async (
+//   event: APIGatewayProxyEventV2,
+//   _context: Context
+// ): Promise<APIGatewayProxyStructuredResultV2> => {
+//   const userService = new UserService();
 
-  if (event.queryStringParameters == null || event.queryStringParameters.date == null) {
-    throw new MissingParameterException('Must inform parameter date');
-  }
+//   log.debug('User Handler Event Received!', event);
 
-  const date = new Date(event.queryStringParameters.date);
-  const timeframe = event.queryStringParameters.timeframe;
+//   if (event.queryStringParameters == null || event.queryStringParameters.date == null) {
+//     throw new MissingParameterException('Must inform parameter date');
+//   }
 
-  try {
-    const queryResult = await userService.query(date, timeframe);
+//   const date = new Date(event.queryStringParameters.date);
+//   const timeframe = event.queryStringParameters.timeframe;
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(queryResult)
-    };
-  } catch (error) {
-    if (error instanceof ApplicationException) {
-      return {
-        statusCode: error.httpStatusCode,
-        body: error.message
-      };
-    } else {
-      log.error('Unhandled backed error', {}, error as Error);
-      throw error;
-    }
-  }
-};
+//   try {
+//     const queryResult = await userService.query(date, timeframe);
+
+//     return {
+//       statusCode: 200,
+//       body: JSON.stringify(queryResult)
+//     };
+//   } catch (error) {
+//     if (error instanceof ApplicationException) {
+//       return {
+//         statusCode: error.httpStatusCode,
+//         body: error.message
+//       };
+//     } else {
+//       log.error('Unhandled backed error', {}, error as Error);
+//       throw error;
+//     }
+//   }
+// };

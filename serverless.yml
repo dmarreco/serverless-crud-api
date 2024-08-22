@@ -81,21 +81,8 @@ resources:
           - AttributeName: id
             KeyType: HASH
         AttributeDefinitions:
-          - AttributeName: id # this attribute may look redundant with start_time but it is usefull for querying purposes (see date-index)
+          - AttributeName: id 
             AttributeType: S
-          - AttributeName: startDate # this attribute may look redundant with startTime, but it contains only the day-of-year part of startTime and is usefull for querying purposes (see date-index)
-            AttributeType: S
-          - AttributeName: startTime
-            AttributeType: S
-        GlobalSecondaryIndexes:
-          - IndexName: date-index
-            KeySchema:
-              - AttributeName: startDate
-                KeyType: HASH
-              - AttributeName: startTime
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
         Tags:
           - Key: DDBTableGroupKey-${self:provider.stage}

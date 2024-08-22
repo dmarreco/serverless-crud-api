@@ -1,8 +1,10 @@
-import DynamoRepository from './lib/dynamo-repository';
-import User from './user-entity';
+import { DynamoRepository } from '../src/lib/dynamo-repository';
+import { getRequiredEnvVar } from '../src/lib/config';
 
-export default class UserRepo extends DynamoRepository<User> {
+import { User } from '../src/user-entity';
+
+export class UserRepo extends DynamoRepository<User> {
   constructor() {
-    super('USER_TABLE');
+    super(() => getRequiredEnvVar('USER_TABLE'));
   }
 }

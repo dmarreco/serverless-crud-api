@@ -1,0 +1,23 @@
+[
+  {
+    "id": "001",
+    "version": 1,
+    "name": "James Logan Howlett",
+    "email": "wolverine@xmen.org"
+  },
+
+  {
+    "id": "002",
+    "version": 1,
+    "name": "Wade Wilson",
+    "email": "deadpool@hotmail.com"
+
+  },
+
+  {
+    "id": "011",
+    "version": 1,
+    "name": "Anthony Edward Stark",
+    "email": "tony@starkindustries.com"
+  }
+]

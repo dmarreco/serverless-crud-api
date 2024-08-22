@@ -1,8 +1,8 @@
-import UserRepo from '../../src/user-repo';
-import User from '../../src/user-entity';
+import UserRepo from '@src/user-repo';
+import User from '@src/user-entity';
 
-import UserService from '../../src/user-service';
-import { NoEntityFoundException } from '../../src/lib/business-exceptions';
+import UserService from '@src/user-service';
+import { NoEntityFoundException } from '@src/lib/business-exceptions';
 
 process.env.USER_TABLE = 'mock';
 process.env.LOG_LEVEL = 'ERROR'; //TODO implement disable logs and disable it for tests

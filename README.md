@@ -15,6 +15,14 @@ It's goal is to serve as a learning reference and template.
 - [middy](https://github.com/middyjs/middy) middleware engine for AWS lambda. It is used to check request/response scheme, resolve application exceptions to error responses and fetch configuration from SSM, and many other handy features. Never dive into the serverless sea without it =).
 - [AWS SDK for Javascript v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
 
+
+## Features:
+
+- Optimistic lock write verification
+- (TODO) Input schema validation
+- (TODO) Parameter resolution at runtime
+
+
 ## This Project Requires
 
 - Node 20
@@ -66,7 +74,6 @@ Deploying to the cloud is very simple, you can use serverless directly, providin
 
 ## Possible further improvements:
 
-- Improve imports, eliminating relative paths (ex '../...') and avoiding importing the whole module when not needed.
 - Use a proper middleware such as https://middy.js.org/ instead of the simple home-made lambda wrapper at 'lib/lambda-wrapper.ts'.
 - Integrate with a parameter storage like SSM or Secrets Manager, either at runtime or deployment time.
 - Define IAM role per function, adopting a more strict read/write permission policy.
