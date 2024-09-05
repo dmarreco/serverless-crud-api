@@ -1,5 +1,5 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { getDocClient } from "./dynamo-doc-client";
+import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from 'uuid';
 
 import log from './log';
@@ -13,6 +13,17 @@ export class PersistenceException extends Error {
     }
 }
 
+export class OptimisticLockingException extends PersistenceException {
+    constructor() {
+        super('Optimistic lock violation');
+    }
+}
+
+export class UnexistingEntityException extends PersistenceException {
+    constructor() {
+        super('No entity with the given id currently exists');
+    }
+}
 
 export abstract class DynamoRepository<EntityType extends DomainEntity> {
 
@@ -21,23 +32,7 @@ export abstract class DynamoRepository<EntityType extends DomainEntity> {
     protected constructor(private readonly getTableName: () => string) { }
 
     // TODO this client lazy getter / factory can be extracted to a specific module
-    private getDocClient():  DynamoDBDocumentClient {
-        if (this._docClient == null) {
-            let client: DynamoDBClient;
 
-            if (process.env['IS_OFFLINE'] === 'true') {
-                log.warn('Using Local/Offline DynamoDb Custom Endpoint');
-                client = new DynamoDBClient({ endpoint: 'http://localhost:8000' });
-            } else {
-                log.debug('Using Cloud/AWS DynamoDb Default Endpoint');
-                client = new DynamoDBClient();
-            }
-    
-            this._docClient = DynamoDBDocumentClient.from(client);
-        }
-
-        return this._docClient;
-    }
 
     async get(id: string): Promise<EntityType | null> {
         const command = new GetCommand({
@@ -45,18 +40,16 @@ export abstract class DynamoRepository<EntityType extends DomainEntity> {
             Key: { id }
         });
 
-        const commandResult = await this.getDocClient().send(command);
+        log.debug('sending command', command.input);
 
-        if (!commandResult.Item) return null;
+        const commandResult = await getDocClient().send(command);
+
+        if (!commandResult.Item) throw new UnexistingEntityException();
 
         return commandResult.Item as EntityType;
     }
 
-    async list(page: number, pageSize: number): Promise<EntityType[]> {
-        const commonCmdParams = {
-            TableName: this.getTableName(),
-            Limit: pageSize,
-        };
+    async list(page: number = 1, pageSize?: number): Promise<EntityType[]> {
 
         let commandResult;
         let lastEvaluatedKey;
@@ -64,15 +57,30 @@ export abstract class DynamoRepository<EntityType extends DomainEntity> {
         for (let i = 0; i < page; i++) {
             const isLastPage = i === page - 1;
 
-            commandResult = await this.getDocClient().send(new ScanCommand({
-                ...commonCmdParams,
+            const command: QueryCommand = new QueryCommand({
+                TableName: this.getTableName(),
+                IndexName: 'GSI1',
+                KeyConditionExpression: '#GSI1_PK = :GSI1_PK_VAL',
+                ExpressionAttributeNames: {
+                    '#GSI1_PK': 'GSI1_PK',
+                },
+                ExpressionAttributeValues: {
+                    ':GSI1_PK_VAL': '1',
+                },
+
+                ScanIndexForward: true,
+                Limit: pageSize,
                 ExclusiveStartKey: lastEvaluatedKey,
-                ProjectionExpression: isLastPage ? undefined : 'id', // Fetch full attributes only for the last page
-            }));
+                ProjectionExpression: isLastPage ? undefined : 'id', // Fetch full attributes only for the target page
+            });
+
+            log.debug('sending command', command.input);
+
+            commandResult = await getDocClient().send(command);
 
             lastEvaluatedKey = commandResult?.LastEvaluatedKey;
 
-            if (!lastEvaluatedKey)  break; // End of dataset reached before target page
+            if (!lastEvaluatedKey) break; // End of dataset reached before target page
         }
 
         if (commandResult?.Items == null) return []; // TODO should throw?
@@ -86,43 +94,64 @@ export abstract class DynamoRepository<EntityType extends DomainEntity> {
         }
 
         const currentVersion = Number(entity.version);
-        const newVersion = Date.now();
-        
-        const command = new PutCommand({
-            TableName: this.getTableName(),
-            Item: {
-                ... entity,
-                version: newVersion
-            },
-            // the parameters below garantee optimistic lock violations will throw "ConditionalCheckFailedException: The conditional request failed" error
-            ConditionExpression: '#version = :currentVersion',
-            ExpressionAttributeNames: { '#version': 'version' },
-            ExpressionAttributeValues: { ':currentVersion': currentVersion }
-          });
 
-          const commandResult = await this.getDocClient().send(command);
+        const existing = await this.get(entity.id);
 
-          return commandResult.Attributes as EntityType;
-    }
+        if (existing == null) throw new UnexistingEntityException();
 
-    async create(entity: EntityType): Promise<EntityType> {
-        
-        if (entity.id) {
-            throw new PersistenceException('Can not create a non-volatile entity object; The entity already has an id attribute - update instead');
+        const item = {
+            ...entity,
+            version: Date.now()
         }
 
         const command = new PutCommand({
             TableName: this.getTableName(),
-            Item: {
-                ... entity,
-                id: uuidv4(),
-                version: Date.now()
+            Item: item,
+            // the parameters below garantee optimistic lock violations will throw "ConditionalCheckFailedException: The conditional request failed" error
+            ConditionExpression: '#version = :currentVersion',
+            ExpressionAttributeNames: { '#version': 'version' },
+            ExpressionAttributeValues: { ':currentVersion': currentVersion },
+        });
+
+        log.debug('sending command', command.input);
+
+        try {
+            await getDocClient().send(command);
+        } catch (err) {
+            if (err instanceof Error && err.name === 'ConditionalCheckFailedException') {
+                throw new OptimisticLockingException();
             }
-          });
+            throw err;
+        }
 
-          const commandResult = await this.getDocClient().send(command);
+        return item as EntityType;
+    }
 
-          return commandResult.Attributes as EntityType;
+    async create(entity: EntityType): Promise<EntityType> {
+
+        if (entity.id) {
+            throw new PersistenceException('Can not create a non-volatile entity object; The entity already has an id attribute - update instead');
+        }
+
+        const GSI1_PK = '1'; // constant, this GSI is useful only used to sort all records by name
+
+        const newEntity = {
+            ...entity,
+            id: uuidv4(),
+            version: Date.now(),
+            GSI1_PK
+        };
+
+        const command = new PutCommand({
+            TableName: this.getTableName(),
+            Item: newEntity,
+        });
+
+        log.debug('sending command', command.input);
+
+        await getDocClient().send(command);
+
+        return newEntity as EntityType;
     }
 
 }

@@ -46,8 +46,10 @@ const log = {
     doLog('ERROR', message, appendError(params, error), console.error),
   warn: (message: string, params?: any, error?: Error) =>
     doLog('WARN', message, appendError(params, error), console.warn),
-  info: (message: string, params?: any) => doLog('INFO', message, params, console.info),
-  debug: (message: string, params?: any) => doLog('DEBUG', message, params, console.debug)
+  info: (message: string, params?: any) =>
+    doLog('INFO', message, params, console.info),
+  debug: (message: string, params?: any) =>
+    doLog('DEBUG', message, params, console.debug)
 };
 
 export default log;

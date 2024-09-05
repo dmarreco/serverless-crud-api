@@ -81,9 +81,22 @@ resources:
           - AttributeName: id
             KeyType: HASH
         AttributeDefinitions:
-          - AttributeName: id 
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: GSI1_PK
+            AttributeType: S
+          - AttributeName: name
             AttributeType: S
         BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1_PK
+                KeyType: HASH
+              - AttributeName: name
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
         Tags:
           - Key: DDBTableGroupKey-${self:provider.stage}
             Value: ${self:provider.stage}
