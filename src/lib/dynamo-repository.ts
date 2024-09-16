@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import log from './log';
 
-import DomainEntity from "./domain-entity";
+import {DomainEntity} from "./domain-entity-schema";
 
 
 export class PersistenceException extends Error {
@@ -14,12 +14,16 @@ export class PersistenceException extends Error {
 }
 
 export class OptimisticLockingException extends PersistenceException {
+    readonly statusCode = 409;
+    
     constructor() {
         super('Optimistic lock violation');
     }
 }
 
 export class UnexistingEntityException extends PersistenceException {
+    readonly statusCode = 404;
+
     constructor() {
         super('No entity with the given id currently exists');
     }
@@ -34,7 +38,7 @@ export abstract class DynamoRepository<EntityType extends DomainEntity> {
     // TODO this client lazy getter / factory can be extracted to a specific module
 
 
-    async get(id: string): Promise<EntityType | null> {
+    async get(id: string): Promise<EntityType> {
         const command = new GetCommand({
             TableName: this.getTableName(),
             Key: { id }

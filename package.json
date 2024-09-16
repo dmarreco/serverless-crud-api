@@ -5,7 +5,7 @@
   "author": "Daniel Marreco",
   "scripts": {
     "dynamodb:install": "npx serverless dynamodb install",
-    "offline:start": "npx serverless offline start --stage local",
+    "offline:start": "npx serverless offline start --stage local --reloadHandler --httpPort=4000",
     "build": "npx tsc --noEmit",
     "test": "npx jest",
     "test:unit": "npx jest ./test/unit/",
@@ -44,7 +44,18 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.7.0",
+    "@aws-lambda-powertools/parser": "^2.7.0",
+    "@middy/core": "^5.4.7",
+    "@middy/http-error-handler": "^5.4.7",
+    "@middy/http-event-normalizer": "^5.4.7",
+    "@middy/http-json-body-parser": "^5.4.7",
+    "@middy/http-response-serializer": "^5.4.7",
+    "@middy/input-output-logger": "^5.4.7",
+    "@middy/validator": "^5.4.7",
     "@types/uuid": "^9.0.7",
-    "uuid": "^9.0.1"
+    "middy": "^0.36.0",
+    "uuid": "^9.0.1",
+    "zod": "^3.23.8"
   }
 }

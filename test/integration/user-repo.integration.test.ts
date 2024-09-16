@@ -1,5 +1,5 @@
 import { UserRepo } from '../../src/user-repo';
-import { User } from '../../src/user-entity';
+import { User } from '../../src/user-schema';
 import { deleteAllUsers, seedUsers } from './seed-data/user-seeder';
 import { OptimisticLockingException, PersistenceException, UnexistingEntityException } from '../../src/lib/dynamo-repository';
 

@@ -65,17 +65,15 @@ Deploying to the cloud is very simple, you can use serverless directly, providin
 
 ## Notes from the Author:
 
-- This project may have incurred in some big design upfront, and some selected tools might look like an overshoot for such a simple service, but I wanted to show some interesting tools and approaches to use in real and more complex production projects. On the other hand, some shortcuts I would take in production code were taken for simplicity sake.
 - I would certainly rely on more regression tests scenarios for a real application, production code.
 - Not to use DDD was a design decision, I decided to focus on structure, SOLID and clean practices.
-- The service layer encapsulate business rules. The handler layer encapsulates API contract rules.
+- Here, the handler depends directly on the database layer. In (a bit) more complex scenarios, I would avoid leaving business rules in the handlers. Have a service layer to encapsulate business rules. The handler layer should encapsulates API contract rules.
 - I decided not to create a single, idempotent endpoint for updating and creating (PUT) for simplicity, although I admit it is not a good REST modeling practice for entities. Different approaches like non-idempotent PUT, PATCHing attributes, etc exist, depending on many factors.
 - All modules in 'lib' packages would be reused by many services, and in production code, should be extracted into one or many managed dependencies (something like '@my_company/lambda-utils') in a private dependency repository or available in a managed lambda layer (see https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html).
 
-## Possible further improvements:
+## Possible further improvements (TODO):
 
-- Use a proper middleware such as https://middy.js.org/ instead of the simple home-made lambda wrapper at 'lib/lambda-wrapper.ts'.
-- Integrate with a parameter storage like SSM or Secrets Manager, either at runtime or deployment time.
+- Avoid creating a single partition GSI for pagination using a smarter approach like this: https://theburningmonk.com/2018/02/guys-were-doing-pagination-wrong/.
 - Define IAM role per function, adopting a more strict read/write permission policy.
 - More tests scenarios are needed to achieve 100% coverage; e2e tests scenarios are meant to be less profuse, but are also missing some more scenarios.
 

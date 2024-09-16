@@ -54,21 +54,21 @@ custom:
 
 functions:
   get-user:
-    handler: ./src/user-handler.get
+    handler: ./src/user-handlers.get
     events:
-      - httpApi: 'GET /user/{id}'
+      - httpApi: 'GET /user/{userId}'
   create-user:
-    handler: ./src/user-handler.create
+    handler: ./src/user-handlers.create
     events:
       - httpApi: 'POST /user'
-  update-user:
-    handler: ./src/user-handler.update
+  # update-user:
+  #   handler: ./src/user-handlers.update
+  #   events:
+  #     - httpApi: 'PUT /user/{id}'
+  list-users:
+    handler: ./src/user-handlers.list
     events:
-      - httpApi: 'PUT /user/{id}'
-  query-user:
-    handler: ./src/user-handler.query
-    events:
-      - httpApi: 'GET /user'
+      - httpApi: 'GET /users'
 
 resources:
   Resources:
